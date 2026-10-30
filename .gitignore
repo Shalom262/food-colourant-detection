@@ -7,6 +7,4 @@ __pycache__/
 server-output.log
 server-error.log
 server.pid
-.env
-.env.*
 !.env.example
