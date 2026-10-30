@@ -31,8 +31,10 @@ poll();
 async function loadSamples(){try{const response=await fetch('/api/samples');if(!response.ok)throw Error();const data=await response.json();for(const sample of data){const button=document.createElement('button');button.className='sample';const image=document.createElement('img');image.src=sample.url;image.alt=sample.title+' dataset sample';const text=document.createElement('div');text.textContent=sample.title;const caption=document.createElement('span');caption.textContent='Try sample ↗';text.append(caption);button.append(image,text);button.onclick=async()=>{if(busy)return;try{const r=await fetch(sample.url);if(!r.ok)throw Error();chooseFile(new File([await r.blob()],sample.filename,{type:'image/jpeg'}));}catch{showError('Could not load this sample. Please upload your photo.');}};$('samples').append(button);}}catch{$('samples').textContent='Upload your own photo to begin.';}}
 loadSamples();
 function renderBars(){
- const probabilities=task==='powder'?result.raw_powder_probabilities:result.raw_colouring_probabilities;
+ const probabilities=task==='powder'?result.raw_powder_probabilities:result.eligible_colouring_probabilities;
  const best=task==='powder'?result.powder:result.colouring;
+ $('probabilityCaption').textContent=task==='powder'?'RAW MODEL PROBABILITIES':'ELIGIBLE CLASSES · RAW SCORES';
+ $('scoreNote').textContent=task==='powder'?'Scores describe the model’s prediction. “Pure” is a dataset category, not a chemical purity measurement.':'Only powder-compatible classes are shown. Scores are unmodified model probabilities and may not sum to 100%; the full model output is in the JSON report.';
  $('probabilities').replaceChildren();
  for(const [key,value] of Object.entries(probabilities)){
  const row=document.createElement('div');row.className='probability'+(key===best?' best':'');
@@ -49,8 +51,8 @@ $('analyzeButton').onclick=async()=>{
  busy=true;resetExplanations();syncButton();showError('');$('emptyState').hidden=true;$('resultState').hidden=true;$('loadingState').hidden=false;$('resultBadge').textContent='ANALYZING';$('resultsPanel').setAttribute('aria-busy','true');$('analyzeLabel').textContent='Analyzing…';$('analyzeArrow').textContent='◎';
  const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),180000);const started=Date.now();
  const progress=setInterval(()=>{const seconds=Math.floor((Date.now()-started)/1000);$('loadingDetail').textContent=seconds<5?'Preparing powder region and colour features':seconds<15?'Reading visual patterns with DINOv3':'Still analyzing on your CPU · '+seconds+' seconds';},1500);
- try{const form=new FormData();form.append('file',selectedFile);const response=await fetch('/api/predict',{method:'POST',body:form,signal:controller.signal});const data=await response.json();if(!response.ok)throw Error(data.detail||'Analysis failed. Please try again.');result=data;resetExplanations();$('explainSection').hidden=false;
- $('powderResult').textContent=label(data.powder);$('colourResult').textContent=label(data.colouring)+' · colouring category';
+ try{const form=new FormData();form.append('file',selectedFile);const response=await fetch('/api/predict',{method:'POST',body:form,signal:controller.signal});const data=await response.json();if(!response.ok)throw Error(data.detail||'Analysis failed. Please try again.');result=data;window.dispatchEvent(new CustomEvent('spicescope:prediction',{detail:{powder:data.powder}}));resetExplanations();$('explainSection').hidden=false;
+ $('powderResult').textContent=label(data.powder);$('colourResult').textContent=label(data.colouring)+' · allowed for '+label(data.powder);
  const confidence=data.raw_powder_probabilities[data.powder];$('confidenceValue').textContent=(confidence*100).toFixed(1)+'%';$('confidenceRing').style.setProperty('--score',confidence*360+'deg');
  $('preparedPreview').src=data.prepared_preview;$('inferenceTime').textContent='Completed locally in '+data.elapsed_seconds.toFixed(2)+' s';$('resultBadge').textContent='ANALYSIS COMPLETE';setTask('powder');$('resultState').hidden=false;
  }catch(error){showError(error.name==='AbortError'?'This analysis took too long. Wait a moment before retrying on CPU.':requestError(error));$('emptyState').hidden=false;$('resultBadge').textContent='TRY ANOTHER PHOTO';}
@@ -62,10 +64,12 @@ $('closeEvidence').onclick=()=>$('evidenceDialog').close();$('evidenceDialog').a
 
 
 function resetExplanations(){
+ window.dispatchEvent(new CustomEvent('spicescope:explanations-cleared'));
  $('explainSection').hidden=true;$('explainContent').hidden=true;$('explainProgress').hidden=true;$('explainError').hidden=true;$('explainButton').disabled=false;$('explainButton').innerHTML='Generate explanations <span>&#8599;</span>';
 }
 function formatContribution(value){return Math.abs(value)<.01&&value!==0?value.toExponential(2):value.toFixed(3);}
 function renderExplanations(e){
+ window.dispatchEvent(new CustomEvent('spicescope:explanations',{detail:e}));
  for(const name of ['powder','colouring']){const cam=e.cams[name];$(name+'CamTarget').textContent=label(cam.target);$(name+'CamBase').src=e.prepared_image;$(name+'CamOverlay').src=cam.map;$(name+'CamOverlay').hidden=!cam.has_positive_activation;$(name+'CamNote').textContent=cam.has_positive_activation?'Positive attribution for '+label(cam.target)+' on the prepared image.':'No positive attribution at this layer for this target.';}
  const mask=e.segmentation;$('maskOriginal').src=mask.original;$('maskBinary').src=mask.binary_mask;$('maskContour').src=mask.contour;$('maskPrepared').src=mask.prepared;$('maskCoverage').textContent=(mask.coverage*100).toFixed(1)+'% mask coverage';$('maskNote').textContent=mask.note+(!mask.roi_valid?' The ROI check did not pass; the pipeline used its full-image fallback.':'');
  const ig=e.colour_attribution;const max=Math.max(...ig.groups.map(g=>Math.abs(g.attribution)),1e-10);$('attributionBars').replaceChildren();

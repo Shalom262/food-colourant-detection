@@ -1,0 +1,13 @@
+{
+  "name": "spicescope-webapp",
+  "private": true,
+  "scripts": {
+    "build:3d": "esbuild static/scene-entry.js --bundle --format=iife --target=es2020 --outfile=static/vendor/scenes.js"
+  },
+  "dependencies": {
+    "three": "0.180.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.11"
+  }
+}

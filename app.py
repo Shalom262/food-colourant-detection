@@ -18,6 +18,27 @@ pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix='spicescope')
 state = {'status': 'loading', 'message': 'Loading trained DINOv3 weights...'}
 predictor = None
 log = logging.getLogger('spicescope')
+ALLOWED_COLOURINGS = {
+    'Chilli': ('Pure', 'PillarRed', 'RosePink'),
+    'CurryPowder': ('Pure', 'PillarRed', 'RosePink'),
+    'Turmeric': ('Pure', 'LemonYellow', 'EggYellow'),
+}
+
+def apply_colour_policy(result):
+    powder = result.get('powder')
+    raw_probabilities = result.get('raw_colouring_probabilities')
+    allowed = ALLOWED_COLOURINGS.get(powder)
+    if allowed is None or not isinstance(raw_probabilities, dict):
+        raise RuntimeError('No powder-specific colouring policy is available for this prediction.')
+    if any(label not in raw_probabilities for label in allowed):
+        raise RuntimeError('Model output is missing an allowed colouring class.')
+
+    eligible_probabilities = {label: raw_probabilities[label] for label in allowed}
+    result['model_colouring_prediction'] = result['colouring']
+    result['allowed_colourings'] = list(allowed)
+    result['eligible_colouring_probabilities'] = eligible_probabilities
+    result['colouring'] = max(eligible_probabilities, key=eligible_probabilities.get)
+    return result
 
 def load_model():
     global predictor
@@ -59,7 +80,7 @@ def info():
     if evidence.is_file():
         with evidence.open(newline='', encoding='utf-8') as handle:
             metrics = [row for row in csv.DictReader(handle) if row['split'] == 'test']
-    return {'model': 'DINOv3 ViT-B/16', 'seed': META['seed'], 'powders': META['powders'], 'colourings': META['colourings'], 'image_size': META['image_size'], 'test_evidence': metrics, 'policy': META['prediction_policy']}
+    return {'model': 'DINOv3 ViT-B/16', 'seed': META['seed'], 'powders': META['powders'], 'colourings': META['colourings'], 'image_size': META['image_size'], 'test_evidence': metrics, 'policy': META['prediction_policy'], 'colouring_policy': 'Powder-conditioned allowed classes; raw model probabilities are preserved.', 'allowed_colourings_by_powder': ALLOWED_COLOURINGS}
 
 @app.get('/api/samples')
 def samples():
@@ -80,6 +101,7 @@ def infer(data, filename, with_explanations=False):
         rgb, preparation, diagnostic = predictor.preprocess.prepare_path(path, size=predictor.metadata['preprocessing_export_size'], mode=predictor.metadata['input_mode'], analysis_side=predictor.metadata['analysis_side'])
         preparation = sys.modules[type(predictor).__module__]._json_safe(preparation)
         result = predictor.predict_prepared(rgb)
+        apply_colour_policy(result)
         result['preprocessing'] = preparation
         if with_explanations:
             from explainability import explain_prepared

@@ -14,16 +14,18 @@ On another machine, install Python 3.11+, put this app beside the original bundl
 
 ## What is included
 
-- Responsive cream/forest-green interface; custom 3D spice-particle scene, pointer orbit and floating animations. Reduced-motion and offscreen animation support.
+- Responsive cream/forest-green interface; Three.js spice bowl with settling grains, drag and keyboard rotation, powder-linked illustrative colours, reduced-motion handling, offscreen pausing and a 2D fallback. The scene is decorative, not a model explanation.
 - Drag-and-drop upload, local image preview, three real original dataset-frame samples, progress and actionable errors.
 - Actual model predictions, raw probabilities for all three powder and five colouring categories, processed ROI preview and downloadable JSON.
 - Test-evidence dialog reads the bundle CSV directly.
 - Model initialization, checksum verification, strict weight loading and the original preprocessing stay in the exported bundle. App reads the bundle without editing it.
 - Uploads are temporary and removed after analysis; inference runs locally. Only a supplementary Google Fonts stylesheet uses the internet; system fonts work offline.
 
+To rebuild the bundled 3D assets after editing their source files, run `npm install` and `npm run build:3d`. The shared bundle keeps Node.js out of the app's runtime requirements.
+
 ## Model contract
 
-Powders: Chilli, CurryPowder, Turmeric. Colourings: Pure, PillarRed, RosePink, LemonYellow, EggYellow. Independent argmax predictions are preserved. The app does not rename or merge classes, filter label pairs, invent a purity percentage or reuse results from another seed. Raw model scores are displayed. Calibrated scores, when provided by the bundle, remain in the downloaded report. Pure is a dataset category, not a chemical-purity measurement.
+Powders: Chilli, CurryPowder, Turmeric. Colourings: Pure, PillarRed, RosePink, LemonYellow, EggYellow. The exported model's independent argmax and all raw scores are preserved. The app applies a hard-coded powder-conditioned display policy: Chilli and CurryPowder allow Pure, PillarRed and RosePink; Turmeric allows Pure, LemonYellow and EggYellow. The final `colouring` output is selected from that powder's allowed classes; `model_colouring_prediction` and `raw_colouring_probabilities` retain the unfiltered model output. This does not invent a purity percentage or reuse results from another seed. Pure is a dataset category, not a chemical-purity measurement.
 
 ## Backend
 

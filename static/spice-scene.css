@@ -1,0 +1,35 @@
+.hero-art canvas.spice-renderer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  pointer-events: auto;
+  touch-action: pan-y;
+}
+
+.hero-art canvas.spice-renderer.is-dragging {
+  cursor: grabbing;
+}
+
+.hero-art canvas.spice-renderer:focus-visible {
+  outline: 3px solid #a2b963;
+  outline-offset: -6px;
+}
+
+.hero-art #spiceScene {
+  pointer-events: none;
+}
+.spice-selector{position:absolute;z-index:4;bottom:12px;left:50%;transform:translateX(-50%);display:flex;gap:5px;background:#ffffffdf;padding:5px;border:1px solid #dfe7d8;border-radius:999px;box-shadow:0 6px 18px #203b2c14}.spice-selector button{background:transparent;border-radius:999px;padding:6px 10px;font-size:10px;color:#4f6659}.spice-selector button:hover,.spice-selector button[aria-pressed=true]{background:#193d33;color:white}
+.drop-zone{position:relative;overflow:hidden}.sample-scan{display:none;position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,transparent 0%,transparent 46%,#d4eea8a0 49%,#fff 50%,#d4eea8a0 51%,transparent 54%);background-size:100% 200%;animation:sample-sweep 2s linear infinite}.lab-grid:has(.results-panel[aria-busy=true]) .drop-zone:has(#uploadPreview:not([hidden])) .sample-scan{display:block}@keyframes sample-sweep{from{background-position:0 100%}to{background-position:0 -100%}}
+.heat3d-panel{margin:24px 0;border:1px solid #dfe8d9;border-radius:16px;background:#f8faf5;overflow:hidden}.heat3d-panel summary{cursor:pointer;display:flex;justify-content:space-between;padding:17px 20px;font-weight:700}.heat3d-content{padding:0 20px 20px}.heat3d-controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12px}.heat3d-controls select,.heat3d-controls button{border:1px solid #d9e3d5;background:white;border-radius:8px;padding:8px 10px}.heat3d-view{height:330px;margin-top:14px;border-radius:12px;overflow:hidden;background:#eef3e9}.heat3d-view canvas{width:100%;height:100%;display:block;touch-action:none}.heat3d-content p{color:#6b796f;line-height:1.6;font-size:12px}.heat3d-content #heat3dStatus:empty{display:none}@media(prefers-reduced-motion:reduce){.sample-scan{animation:none!important;background-position:center!important}}
+
+/* Photo analysis: restrained luminous scan, scoped to the existing busy state. */
+.drop-zone .sample-scan{inset:0;overflow:hidden;border-radius:inherit;background:linear-gradient(180deg,rgba(10,33,23,.10),rgba(10,33,23,.04) 48%,rgba(10,33,23,.22));animation:none;isolation:isolate}
+.sample-scan .scan-grid{position:absolute;inset:0;opacity:.22;background-image:linear-gradient(rgba(236,255,221,.18) 1px,transparent 1px),linear-gradient(90deg,rgba(236,255,221,.18) 1px,transparent 1px);background-size:32px 32px;mask-image:linear-gradient(transparent,#000 20%,#000 80%,transparent)}
+.sample-scan .scan-frame{position:absolute;inset:13px;pointer-events:none}.scan-frame i{position:absolute;width:23px;height:23px;border-color:#e6ffc7;border-style:solid;filter:drop-shadow(0 0 6px #c3f594);opacity:.9}.scan-frame i:nth-child(1){top:0;left:0;border-width:2px 0 0 2px;border-radius:5px 0 0 0}.scan-frame i:nth-child(2){top:0;right:0;border-width:2px 2px 0 0;border-radius:0 5px 0 0}.scan-frame i:nth-child(3){bottom:0;left:0;border-width:0 0 2px 2px;border-radius:0 0 0 5px}.scan-frame i:nth-child(4){bottom:0;right:0;border-width:0 2px 2px 0;border-radius:0 0 5px 0}
+.sample-scan .scan-beam{position:absolute;left:14px;right:14px;top:0;height:30%;background:linear-gradient(to bottom,transparent,rgba(208,249,170,.07) 72%,rgba(226,255,206,.26) 95%,rgba(248,255,240,.95));border-bottom:1px solid #edffdd;box-shadow:0 6px 22px rgba(201,255,162,.4);animation:spice-beam 2.5s ease-in-out infinite alternate;will-change:transform}
+.sample-scan .scan-badge{position:absolute;top:23px;left:23px;display:flex;align-items:center;gap:7px;padding:7px 10px;border:1px solid rgba(239,255,226,.3);border-radius:999px;background:rgba(18,52,36,.78);color:#f2ffe9;box-shadow:0 3px 12px #10271938;font-size:9px;font-weight:700;letter-spacing:.12em;line-height:1;backdrop-filter:blur(5px)}.scan-dot{height:6px;width:6px;border-radius:50%;background:#d4ffac;box-shadow:0 0 0 3px #d4ffac29;animation:scan-dot-pulse 1.4s ease-in-out infinite}
+@keyframes spice-beam{0%{transform:translateY(-100%)}100%{transform:translateY(433.333%)}}@keyframes scan-dot-pulse{50%{opacity:.45;box-shadow:0 0 0 5px #d4ffac12}}
+@media(prefers-reduced-motion:reduce){.sample-scan .scan-beam,.sample-scan .scan-dot{animation:none}.sample-scan .scan-beam{top:45%;transform:none;opacity:.55}}
