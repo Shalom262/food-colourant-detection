@@ -1,2 +1,12 @@
 config.bat
-node_modules
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+server-output.log
+server-error.log
+server.pid
+.env
+.env.*
+!.env.example

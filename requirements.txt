@@ -1,0 +1,4 @@
+-r ../dinov3_standard_seed42_9061fbac4697_WebApp_Bundle/dinov3_standard_seed42_9061fbac4697/requirements.txt
+fastapi>=0.115,<1
+uvicorn>=0.30,<1
+python-multipart>=0.0.18,<1

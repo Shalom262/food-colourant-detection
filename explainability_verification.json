@@ -1,0 +1,78 @@
+{
+  "exported_forward_fixture": "passed",
+  "frozen_weights_and_hook_cleanup": "passed",
+  "checks": [
+    {
+      "sample": "chilli",
+      "powder": "Chilli",
+      "colouring": "PillarRed",
+      "prediction_unchanged": true,
+      "patch_grid": [
+        14,
+        14
+      ],
+      "cams": {
+        "powder": {
+          "positive": true,
+          "gradient_l1": 694.9991455078125
+        },
+        "colouring": {
+          "positive": true,
+          "gradient_l1": 282.6541748046875
+        }
+      },
+      "ig_steps": 64,
+      "ig_residual": 3.8743019104003906e-07,
+      "ig_difference": 0.3804769515991211,
+      "seconds": 3.827
+    },
+    {
+      "sample": "curry",
+      "powder": "CurryPowder",
+      "colouring": "PillarRed",
+      "prediction_unchanged": true,
+      "patch_grid": [
+        14,
+        14
+      ],
+      "cams": {
+        "powder": {
+          "positive": true,
+          "gradient_l1": 387.6663513183594
+        },
+        "colouring": {
+          "positive": true,
+          "gradient_l1": 316.22528076171875
+        }
+      },
+      "ig_steps": 64,
+      "ig_residual": -6.556510925292969e-07,
+      "ig_difference": 0.559873104095459,
+      "seconds": 2.299
+    },
+    {
+      "sample": "turmeric",
+      "powder": "Turmeric",
+      "colouring": "LemonYellow",
+      "prediction_unchanged": true,
+      "patch_grid": [
+        14,
+        14
+      ],
+      "cams": {
+        "powder": {
+          "positive": true,
+          "gradient_l1": 563.4696655273438
+        },
+        "colouring": {
+          "positive": true,
+          "gradient_l1": 224.87388610839844
+        }
+      },
+      "ig_steps": 64,
+      "ig_residual": -8.344650268554688e-07,
+      "ig_difference": 1.0886340141296387,
+      "seconds": 1.292
+    }
+  ]
+}

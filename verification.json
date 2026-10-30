@@ -1,0 +1,30 @@
+{
+  "checkedAt": "2026-10-29T21:10:34.314Z",
+  "checks": [
+    {
+      "sample": "curry",
+      "status": 200,
+      "powder": "CurryPowder",
+      "colouring": "PillarRed",
+      "seconds": 2.19,
+      "powderProbabilitySum": 1.000000000002448,
+      "colouringProbabilitySum": 1.0000001152142985
+    },
+    {
+      "sample": "turmeric",
+      "status": 200,
+      "powder": "Turmeric",
+      "colouring": "LemonYellow",
+      "seconds": 1.122,
+      "powderProbabilitySum": 1,
+      "colouringProbabilitySum": 1.0000000071634858
+    },
+    {
+      "case": "invalid image",
+      "status": 400,
+      "body": {
+        "detail": "This image cannot be read. Please choose a smaller, valid photo."
+      }
+    }
+  ]
+}
