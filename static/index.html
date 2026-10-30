@@ -6,7 +6,9 @@
 <title>SpiceScope · A closer look at your spices</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%23173d32'/%3E%3Cpath d='M16 43C16 21 38 12 49 15c1 22-14 38-33 28Z' fill='%23d9eb9d'/%3E%3Cpath d='m18 44 25-23' stroke='%23173d32' stroke-width='3'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/spice-scene.css">
 <script defer src="/static/app.js"></script>
+<script defer src="/static/vendor/scenes.js"></script>
 </head>
 <body>
 <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
@@ -25,10 +27,11 @@
 </div>
 <div class="hero-art" id="heroArt">
 <div class="art-grid"></div><div class="orbital ring-one"></div><div class="orbital ring-two"></div>
-<canvas id="spiceScene" role="img" aria-label="Interactive 3D visualization of a bowl of spice powder. Move the pointer to rotate."></canvas>
+<canvas id="spiceScene" role="img" aria-label="Illustrative bowl of spice powder."></canvas>
 <div class="floating-label label-top"><span class="live-dot"></span> Visual intelligence</div>
-<div class="floating-label label-bottom"><span class="label-symbol">◈</span><div>Nature, in detail<small>Colour · texture · composition</small></div></div>
-<span class="art-caption">MOVE TO EXPLORE <span>↔</span></span>
+<div class="floating-label label-bottom"><span class="label-symbol">◈</span><div>Illustrative scene<small>Not a sample image or model output</small></div></div>
+<span class="art-caption" id="sceneCaption">ILLUSTRATIVE VIEW</span>
+<div class="spice-selector" aria-label="Choose a spice for the illustration"><button type="button" data-spice="Chilli">Chilli</button><button type="button" data-spice="CurryPowder">Curry</button><button type="button" data-spice="Turmeric">Turmeric</button></div>
 </div>
 </section>
 <section class="workspace" id="workspace" aria-labelledby="workspaceTitle">
@@ -39,7 +42,7 @@
 <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp" hidden>
 <button class="drop-zone" id="dropZone" type="button" aria-label="Choose a powder photo or drop one here">
 <div id="uploadPrompt"><span class="upload-icon"><svg viewBox="0 0 48 48" fill="none"><path d="M24 31V10m-8 8 8-8 8 8M10 29v8a3 3 0 0 0 3 3h22a3 3 0 0 0 3-3v-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><strong>Drop a little discovery here</strong><span>Drag & drop your photo, or <u>browse files</u></span><small>JPG, PNG or WebP · Up to 15 MB</small></div>
-<img id="uploadPreview" alt="Selected powder photo" hidden><span class="change-image" id="changeImage" hidden>↻ Change photo</span>
+<img id="uploadPreview" alt="Selected powder photo" hidden><span class="sample-scan" aria-hidden="true"><span class="scan-grid"></span><span class="scan-frame"><i></i><i></i><i></i><i></i></span><span class="scan-beam"></span><span class="scan-badge"><span class="scan-dot"></span> ANALYZING SAMPLE</span></span><span class="change-image" id="changeImage" hidden>↻ Change photo</span>
 </button>
 <div class="file-details" id="fileDetails" hidden><span id="fileName"></span><button id="clearFile" class="text-button" aria-label="Remove selected photo">Remove</button></div>
 <div class="capture-tip"><span>☀</span><p>A clear photo makes a difference.<br><strong>Use even light and a plain white background.</strong></p></div>
@@ -55,10 +58,10 @@
 <div id="resultState" hidden>
 <div class="result-summary"><div><span class="eyebrow">POWDER IDENTIFIED</span><h3 id="powderResult"></h3><span id="colourResult" class="colour-result"></span></div><div class="confidence-ring" id="confidenceRing"><div><strong id="confidenceValue"></strong><small>powder score</small></div></div></div>
 <div class="result-tabs" role="tablist" aria-label="Prediction task"><button class="active" data-task="powder" role="tab" aria-selected="true">Powder type</button><button data-task="colouring" role="tab" aria-selected="false">Colouring profile</button></div>
-<div class="score-caption"><span>RAW MODEL PROBABILITIES</span><span>MODEL SCORE</span></div><div id="probabilities" class="probabilities" role="tabpanel" aria-live="polite"></div>
+<div class="score-caption"><span id="probabilityCaption">RAW MODEL PROBABILITIES</span><span>MODEL SCORE</span></div><div id="probabilities" class="probabilities" role="tabpanel" aria-live="polite"></div>
 <details class="prepared-details"><summary>View processed powder region <span>＋</span></summary><div class="prepared-body"><img id="preparedPreview" alt="Powder region after the exported model preprocessing"><p>This is the region prepared by the original model pipeline before prediction.</p></div></details>
 <div class="result-bottom"><span id="inferenceTime"></span><button class="text-button" id="downloadResult">Download report ↓</button></div>
-<p class="score-note">Scores describe the model’s prediction. “Pure” is a dataset category, not a chemical purity measurement.</p>
+<p class="score-note" id="scoreNote">Scores describe the model’s prediction. “Pure” is a dataset category, not a chemical purity measurement.</p>
 </div>
 </article>
 </div>
@@ -74,6 +77,8 @@
 <figure class="cam-card"><div class="cam-card-top"><span>POWDER HEATMAP</span><strong id="powderCamTarget"></strong></div><div class="cam-image"><img class="cam-base" id="powderCamBase" alt="Prepared powder image"><img class="cam-overlay" id="powderCamOverlay" alt="Grad-CAM for the predicted powder class"></div><figcaption id="powderCamNote"></figcaption><button class="text-button" id="downloadPowderCam">Download powder overlay &#8595;</button></figure>
 <figure class="cam-card"><div class="cam-card-top"><span>COLOURING HEATMAP</span><strong id="colouringCamTarget"></strong></div><div class="cam-image"><img class="cam-base" id="colouringCamBase" alt="Prepared powder image"><img class="cam-overlay" id="colouringCamOverlay" alt="Grad-CAM for the predicted colouring class"></div><figcaption id="colouringCamNote"></figcaption><button class="text-button" id="downloadColouringCam">Download colouring overlay &#8595;</button></figure>
 </div>
+<details class="heat3d-panel" id="heat3dPanel"><summary>Explore Grad-CAM in 3D <span>+</span></summary>
+<div class="heat3d-content"><div class="heat3d-controls"><label for="heat3dTask">Prediction head</label><select id="heat3dTask"><option value="powder">Powder</option><option value="colouring">Colouring</option></select><button type="button" id="heat3dReset">Reset view</button></div><div id="heat3dView" class="heat3d-view" aria-label="Interactive 3D Grad-CAM surface"></div><p id="heat3dStatus" role="status"></p><p>Drag to rotate, scroll to zoom. Height shows relative positive attribution on the 14 × 14 patch grid. Each head has its own scale; it does not show dye location or concentration.</p></div></details>
 <div class="heat-legend"><span>Lower positive attribution</span><span class="heat-spectrum"></span><span>Higher positive attribution</span></div>
 <p class="explain-caution">Heatmaps explain visual model behaviour. They do not identify dye locations or measure dye concentration. The colouring heatmap holds the separate colour descriptor fixed.</p>
 <div class="explain-subheading segmentation-heading"><div><h3>The region behind the result.</h3><p>The actual mask and crop used by the exported preprocessing pipeline.</p></div><span id="maskCoverage" class="small-pill"></span></div>
