@@ -1,4 +1,9 @@
 """Launch with: python -m streamlit run app.py (from demo/)."""
+import utils.net
+import utils.clients
+import utils.http_session
+import utils.transport
+import utils.session
 import sys
 sys.dont_write_bytecode = True
 
