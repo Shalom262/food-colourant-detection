@@ -1,0 +1,6 @@
+# Minimal addition when reusing the notebook environment's model dependencies.
+streamlit>=1.65,<2
+# PyTorch 2.2 in the notebook environment requires the NumPy 1.x ABI.
+numpy>=1.24,<2
+# Satisfy the notebook environment's optional mamba-ssm packaging requirement.
+setuptools>=68,<81

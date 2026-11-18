@@ -1,0 +1,562 @@
+PROJECT PRESENTATION EXPLANATION
+
+Scope: This explanation is based only on 01_preprocessing.ipynb and 02_training_evaluation.ipynb. It excludes the separate architecture and model ablation/reliability audit notebooks, and leaves the detailed CS-MON architecture for a later discussion.
+
+RESULT CONSISTENCY NOTE
+
+Notebook 2 contains older written summaries reporting 80.41% accuracy, but its saved full-training logs and comparison table report 91.22% accuracy and 90.89% macro F1. The results below use that saved comparison table.
+
+1. PROJECT PURPOSE
+
+This project investigates image-based estimation of colouring intensity in three traditional sweets: Kesari, Muscat, and Boondhi.
+
+The task is to classify each image into one of three ordered categories: Low, Medium, or High colouring intensity. These categories have a natural order, so the project treats the problem as ordinal classification.
+
+The overall workflow consists of checking the dataset, preserving its colour information during preprocessing, creating reproducible training and evaluation splits, fine-tuning pretrained models, selecting checkpoints using validation performance, and comparing their performance on a held-out test set.
+
+The labels come from the supplied metadata file. The model learns to predict those supplied labels from images. The experiment does not directly measure chemical dye concentration or establish food safety.
+
+2. DATASET COMPOSITION
+
+The dataset contains 1,944 images.
+
+Sweet      Low    Medium    High    Total
+Kesari     216    216       216     648
+Muscat     216    216       216     648
+Boondhi    216    216       216     648
+Total      648    648       648     1,944
+
+The dataset is balanced across both sweet category and intensity level. Each of the nine sweet-intensity combinations contains 216 images.
+
+The images also cover three devices and three lighting conditions.
+
+Device                 Images
+Redmi A5               648
+Samsung S23 FE         648
+iPhone 17 Pro Max      648
+
+Lighting condition     Images
+No Light               648
+White Light            648
+Yellow Light           648
+
+The metadata additionally records the colouring categories Blood Red, Egg Yellow, Lemon Yellow, and Orange Red. These describe the dataset; the prediction target in these notebooks is the three-level intensity label.
+
+3. CONNECTING IMAGES TO THEIR LABELS
+
+Notebook 1 begins by reading dataset_details.csv and finding image files inside the Dataset directory.
+
+Each image is matched to its metadata using its filename without the extension. This filename stem must uniquely identify an image.
+
+The notebook checks that:
+- Every metadata record has a unique image ID.
+- Every image filename stem is unique.
+- Intensity labels belong to Low, Medium, or High.
+- Sweet categories belong to the three supported sweets.
+- Image files and metadata records match correctly.
+- Images can be opened and decoded.
+
+Unsupported files, missing matches, and unreadable images would be reported and excluded from the usable dataset.
+
+The saved execution found 1,944 usable images, no corrupt images, no unmatched records, and no unsupported files.
+
+This step ensures that training starts with readable images and unambiguous labels.
+
+4. LABEL ENCODING AND THE PREDICTION TARGET
+
+The three intensity labels are encoded numerically:
+
+Low = 0
+Medium = 1
+High = 2
+
+This encoding preserves the order: Low < Medium < High.
+
+The order matters when interpreting errors. Predicting Medium for a Low image is an error of one intensity level. Predicting High for a Low image is an error of two levels.
+
+The model input is the image. Device, lighting, colouring category, and sweet category are used for dataset analysis and evaluation grouping; they are not supplied as additional numerical inputs to the classifier.
+
+5. IMAGE ORIENTATION, COLOUR MODE, AND RESIZING
+
+Each image passes through a consistent loading process.
+
+First, EXIF orientation is applied. This corrects images whose intended orientation is stored in camera metadata.
+
+Second, the image is converted to RGB, giving every observation three consistent colour channels.
+
+Third, the complete image is resized to 224 x 224 pixels using Pillow's LANCZOS resampling.
+
+The project uses the whole image because verified region-of-interest masks are unavailable. It does not segment the sweet or remove the background.
+
+The resize produces a square image directly. It is not an aspect-ratio-preserving crop or padded resize, so non-square images can undergo geometric distortion.
+
+During training, the image is converted into a tensor with RGB values initially scaled to the range [0, 1].
+
+6. WHY PREPROCESSING PRESERVES COLOUR
+
+Colour is central to the prediction task. Changing image colour during preprocessing could change the visual evidence associated with the intensity label.
+
+Therefore, the notebooks avoid histogram equalization, white balancing, hue jitter, brightness adjustment, and other photometric alterations.
+
+The intention is to standardize the image format and size while retaining its observed colour characteristics.
+
+This preserves the original colour signal, but it does not remove differences caused by lighting or camera processing. Those differences remain part of the learning problem.
+
+7. RGB, HSV, AND CIELAB REPRESENTATIONS
+
+The project examines three representations of the same image.
+
+RGB: Red, Green, Blue. Represents the original image channel intensities.
+HSV: Hue, Saturation, Value. Represents colour type, saturation, and value.
+CIELAB: L*, a*, b*. Represents lightness and two colour-opponent axes.
+
+RGB provides the original image representation.
+
+HSV provides explicit saturation and value components, which may help describe differences in colour appearance.
+
+CIELAB separates lightness from the a* and b* colour axes.
+
+These are three mathematical representations of one observation. They do not create three independent training samples.
+
+Notebook 1 uses scikit-image for colour-space exploration. Notebook 2 uses Kornia for differentiable colour conversions during model execution.
+
+The training scales are:
+- RGB: 2 x RGB - 1
+- HSV: 2 x HSV - 1, after expressing hue as a fraction of a complete turn
+- CIELAB: L*/50 - 1, a*/128, and b*/128
+
+The CIELAB conversion uses the D65 white point.
+
+Detailed processing inside the CS-MON colour-fusion architecture can be explained separately. For the training discussion, the key point is that these representations are calculated from the same spatially transformed image.
+
+8. IMAGENET NORMALIZATION
+
+All primary models start from pretrained ImageNet weights.
+
+Before an image enters its pretrained feature extractor, the model applies ImageNet normalization:
+
+normalized value = (channel value - mean) / standard deviation
+
+The channel means are [0.485, 0.456, 0.406].
+The channel standard deviations are [0.229, 0.224, 0.225].
+
+Normalization is applied inside each model exactly once. For CS-MON, it occurs after the colour-processing module.
+
+This aligns the backbone input with the normalization convention used for its pretrained weights.
+
+9. IMAGE-QUALITY EXPLORATION
+
+Notebook 1 records several descriptive measurements for each image:
+- Original width, height, and aspect ratio.
+- Mean grayscale brightness.
+- Laplacian variance as a relative sharpness indicator.
+- Fraction of very dark pixels.
+- Fraction of very bright pixels.
+- Mean HSV saturation and value.
+- Mean CIELAB lightness and chroma.
+
+Very dark pixels are measured using a grayscale threshold below 0.02. Very bright pixels are measured using a threshold above 0.98.
+
+The notebook visualizes image examples, class counts, resolutions, colour channels, channel distributions, quality measurements, and relationships between those measurements.
+
+These measurements support dataset inspection. They are not used as automatic rejection thresholds, and they are not estimates of dye concentration.
+
+Because the complete image is analysed, the background also contributes to these measurements.
+
+10. DUPLICATE CHECKING BEFORE SPLITTING
+
+The preprocessing notebook checks for duplicate and visually similar images before assigning training, validation, and test sets.
+
+It uses three methods.
+
+A file SHA-256 hash detects identical file contents.
+
+A decoded-pixel SHA-256 hash detects identical oriented RGB pixels, even when file-level information differs.
+
+A 64-bit difference hash identifies near-duplicate candidates based on image structure. Images become candidates when their hashes differ by four bits or fewer.
+
+The saved execution found:
+- Exact duplicate links: 0.
+- Near-duplicate candidate pairs: 104.
+- Connected audit components: 1,842.
+
+Connected images are kept in the same split. This reduces the risk of closely related images appearing in both training and evaluation.
+
+Near-duplicate candidates are retained rather than deleted. Their hash similarity is a conservative grouping rule; it does not prove that they depict the same physical sample.
+
+11. TRAINING, VALIDATION, AND TEST SPLITTING
+
+The target allocation is approximately 70% training, 15% validation, and 15% testing.
+
+The notebook uses group-aware splitting so that images belonging to the same detected duplicate component remain together.
+
+It searches 600 candidate allocations using a reproducible seed of 42. Candidate splits are evaluated by how closely their sweet-intensity counts match the target proportions.
+
+Every sweet-intensity combination must appear in every split.
+
+The split is chosen using category counts and group sizes. Model accuracy and other model outputs do not influence it.
+
+The resulting allocation is:
+
+Split          Images    Percentage
+Training       1,356     69.75%
+Validation     292       15.02%
+Test           296       15.23%
+
+Training data are used to update model parameters. Validation data are used for checkpoint selection and early stopping. Test data are reserved for the final comparison.
+
+12. THE PREPROCESSING OUTPUT
+
+Notebook 1 writes outputs/split_manifest.csv.
+
+This manifest records image paths, image IDs, sweet categories, intensity labels, numerical labels, split assignments, duplicate components, hashes, and relevant metadata.
+
+The original images are retained in place. The notebook does not create a separate directory of processed images.
+
+Notebook 2 reads this manifest so that every primary model uses the same split.
+
+Before training, it checks the current image hashes against the manifest. If an image has changed, the verification fails. It also rechecks label consistency, split coverage, and component separation.
+
+This connects the training experiment to the audited dataset.
+
+13. TRAINING AUGMENTATION
+
+The only training augmentations are spatial flips:
+- Horizontal flip with probability 0.5.
+- Vertical flip with probability 0.5.
+
+These decisions are independent, so an image can receive either flip, both flips, or neither.
+
+The purpose is to expose the model to spatial variation while retaining the image's colour values.
+
+Augmentation is performed dynamically when training images are loaded. Colour-space conversion happens after the shared spatial transformation.
+
+Validation and test images receive deterministic preprocessing without random flips.
+
+14. MODELS INCLUDED IN THE MAIN COMPARISON
+
+Notebook 2 compares five primary models:
+- MobileNetV3-Small: lightweight CNN baseline.
+- ResNet18: residual CNN baseline.
+- ShuffleNetV2 x1.0: efficient CNN baseline.
+- MobileNetV2: lightweight CNN baseline.
+- CS-MON with fine-tuned VMamba-Tiny: main proposed model.
+
+The four baselines use torchvision ImageNet-pretrained weights. CS-MON uses an official ImageNet-pretrained VMamba-Tiny checkpoint.
+
+The original classification heads are replaced with heads for the intensity task.
+
+All primary models use the same dataset split, image size, spatial augmentation policy, normalization convention, ordinal objective, and training schedule.
+
+This creates a controlled comparison under a shared training procedure. It does not establish that every model has received its individually optimal hyperparameters.
+
+15. TRANSFER LEARNING
+
+The models are initialized with pretrained weights rather than trained from scratch.
+
+Pretraining provides features learned from a much larger image dataset. Fine-tuning then adapts those features to colouring-intensity classification.
+
+For VMamba, the complete original pretrained model is loaded strictly before its classification head is replaced. Strict loading checks that the checkpoint parameters match the expected model.
+
+The notebook also records the upstream source revision and source/checkpoint hashes to make the initialization reproducible.
+
+Each new experiment begins from pretrained weights. The configured full run does not resume from the previously saved project checkpoint.
+
+16. ORDINAL LEARNING AND THE TRAINING LOSS
+
+All five primary models use a cumulative ordinal objective.
+
+Instead of treating Low, Medium, and High as unrelated categories, the model learns two ordered decisions:
+1. Is the intensity greater than Low?
+2. Is the intensity greater than Medium?
+
+The training targets are:
+
+Actual class    Greater than Low?    Greater than Medium?
+Low             0                    0
+Medium          1                    0
+High            1                    1
+
+Training uses binary cross-entropy with logits, averaged over the two decisions.
+
+If q0 = P(Y > Low) and q1 = P(Y > Medium), the class probabilities are:
+
+P(Low) = 1 - q0
+P(Medium) = q0 - q1
+P(High) = q1
+
+The ordinal head maintains ordered thresholds so these probabilities remain valid.
+
+The final class prediction is the class with the largest probability. The notebook applies this prediction rule consistently across the primary models.
+
+17. THREE-STAGE TRAINING AND FINE-TUNING
+
+The full training schedule has three stages, with a maximum of 23 epochs per model.
+
+Stage 1: Head training, up to 3 epochs.
+Train the new classification head and applicable colour-processing parameters.
+
+Stage 2: Partial fine-tuning, up to 15 epochs.
+Train the new modules and selected final backbone blocks.
+
+Stage 3: Full fine-tuning, up to 5 epochs.
+Train the entire model.
+
+During head training, the pretrained backbone weights remain frozen. The new task-specific parameters learn to use the existing pretrained features.
+
+Frozen modules are kept in evaluation mode so their running statistics are not updated. For CS-MON, gradients can still pass through the frozen backbone to train the colour-processing module.
+
+During partial fine-tuning, selected higher-level feature blocks are unfrozen:
+- VMamba: its final two stages.
+- ResNet18: layer4.
+- ShuffleNetV2: stage4 and conv5.
+- MobileNet models: their final three feature blocks.
+
+During full fine-tuning, all backbone parameters are unfrozen.
+
+This gradual process first adapts the new output components, then higher-level features, and finally the complete feature extractor.
+
+Early stopping can shorten the schedule, so 23 epochs is a maximum rather than a guaranteed total.
+
+18. OPTIMIZER AND LEARNING RATES
+
+The notebook uses AdamW.
+
+New-module starting learning rate: 0.001.
+Partial fine-tuning backbone starting learning rate: 0.00001.
+Full fine-tuning backbone starting learning rate: 0.000005.
+Weight decay: 0.0001.
+Gradient clipping maximum norm: 1.0.
+
+The pretrained backbone receives a smaller learning rate than the newly added parameters. This allows gradual adaptation of pretrained features while the new components learn more quickly.
+
+Full fine-tuning halves the backbone learning rate again.
+
+Weight decay is omitted for biases, scalar and normalization parameters, and upstream parameters explicitly marked to exclude decay.
+
+A cosine learning-rate scheduler reduces learning rates within each stage. The optimizer and scheduler are recreated at stage transitions.
+
+19. MEMORY MANAGEMENT AND TRAINING STABILITY
+
+The recorded experiment uses an NVIDIA GeForce GTX 1650 Ti with approximately 4 GB of GPU memory.
+
+The physical batch size is two images. Gradients are accumulated across two batches before an optimizer update, giving a nominal effective batch size of four.
+
+The code accounts for a smaller final accumulation window so that its contribution is weighted correctly.
+
+CUDA mixed precision and gradient scaling reduce memory use and support efficient training. Gradient clipping limits unusually large updates.
+
+The training loop also checks for nonfinite loss values and verifies that a trainable backbone parameter actually changes during fine-tuning.
+
+This confirms that the final model has undergone a real backbone update.
+
+20. EARLY STOPPING AND CHECKPOINT SELECTION
+
+Validation macro F1 is the primary checkpoint-selection criterion.
+
+If two checkpoints have identical validation macro F1, the checkpoint with lower validation loss is preferred.
+
+Early stopping uses a patience of four epochs and resets separately for each stage.
+
+Only checkpoints from partial or full fine-tuning can become the final selected model. Head-only checkpoints are excluded from final selection.
+
+The selected checkpoint can therefore come from an earlier fine-tuning epoch rather than the last epoch.
+
+The saved CS-MON training output selected:
+- Random seed: 42.
+- Selected epoch: 20.
+- Selected stage: full fine-tuning.
+- Validation macro F1: 0.9188.
+- Validation loss: 0.1358.
+
+The test set is not used to choose epochs or seeds.
+
+The notebook supports multiple seeds, but the current saved experiment uses only seed 42.
+
+21. WHAT FINE-TUNING MEANS IN THIS PROJECT
+
+Fine-tuning means updating pretrained model weights using the sweet-image training data.
+
+It is distinct from hyperparameter tuning, which means searching for settings such as learning rate, batch size, or weight decay.
+
+These notebooks implement staged fine-tuning with a specified configuration. They do not show an automated grid search, random search, or Bayesian hyperparameter search.
+
+An accurate presentation statement is:
+
+"We fine-tuned ImageNet-pretrained models using a three-stage training schedule and selected checkpoints using validation macro F1."
+
+22. EVALUATION METRICS
+
+The notebook uses several metrics because overall accuracy does not describe every aspect of an ordered classification problem.
+
+Accuracy: fraction of images classified correctly.
+
+Macro precision: average precision across the three classes.
+
+Macro recall: average recall across the three classes.
+
+Macro F1: average class-level F1 score, giving each class equal weight.
+
+Weighted F1: class-level F1 weighted by class support.
+
+Ordinal MAE: average distance between actual and predicted intensity indices.
+
+Quadratic weighted kappa (QWK): agreement measure that penalizes larger ordinal disagreements more strongly.
+
+Expected calibration error (ECE): difference between confidence and observed accuracy across confidence bins.
+
+For ordinal MAE, a Low-to-Medium mistake contributes one, while a Low-to-High mistake contributes two.
+
+Higher accuracy, F1, and kappa are preferable. Lower ordinal MAE and calibration error are preferable.
+
+The notebook also produces confusion matrices and class-specific precision, recall, and F1 plots.
+
+23. SAVED HELD-OUT TEST RESULTS
+
+Model                 Accuracy    Macro F1    Ordinal MAE    QWK
+MobileNetV3-Small     63.51%      60.00%      0.3885         0.7088
+ResNet18              74.66%      72.83%      0.2736         0.7872
+ShuffleNetV2 x1.0     58.45%      57.17%      0.4595         0.6143
+MobileNetV2           69.59%      67.79%      0.3277         0.7425
+CS-MON                91.22%      90.89%      0.0878         0.9381
+
+CS-MON achieved the highest accuracy, macro F1, and QWK, and the lowest ordinal MAE among these five primary models in this experiment.
+
+ResNet18 was the strongest of the four CNN baselines by macro F1.
+
+The CS-MON macro F1 exceeded ResNet18 by approximately 18.07 percentage points.
+
+These are results from one seed on the recorded exploratory split. They do not establish statistical significance across repeated experiments.
+
+24. PERFORMANCE BY SWEET CATEGORY
+
+Sweet      Test images    CS-MON accuracy    CS-MON macro F1
+Kesari     91             89.01%             88.75%
+Muscat     106            90.57%             90.07%
+Boondhi    99             93.94%             93.78%
+
+These results show that performance varies across sweet categories. Boondhi has the highest observed scores in this saved evaluation.
+
+This analysis helps identify whether aggregate performance hides weaknesses in a particular sweet category.
+
+25. MODEL SIZE AND INFERENCE SPEED
+
+Model                 Parameters       Batch-one latency
+MobileNetV3-Small     0.93 million     19.11 ms
+ResNet18              11.18 million    9.42 ms
+ShuffleNetV2 x1.0     1.25 million     26.50 ms
+MobileNetV2           2.23 million     14.94 ms
+CS-MON                29.48 million    66.01 ms
+
+Latency is measured after ten warm-up passes and reported as the median of 30 timed passes.
+
+Timing includes model-side colour conversion, applicable fusion, normalization, and prediction. It excludes file loading.
+
+These measurements come from the recorded GPU environment. They are not smartphone deployment benchmarks.
+
+The observed tradeoff is that CS-MON provides stronger predictive performance while requiring more parameters and higher inference latency.
+
+26. CONFIDENCE AND FEATURE VISUALIZATION
+
+Notebook 2 examines the confidence of correct and incorrect predictions.
+
+It also creates reliability diagrams using ten confidence bins. These compare the model's average confidence with its observed accuracy.
+
+A highly confident prediction can still be incorrect, so confidence should not be interpreted as certainty about dye concentration or food safety.
+
+No temperature scaling is fitted using the test set.
+
+The notebook additionally projects held-out feature embeddings into two dimensions using PCA. This provides a descriptive view of learned features by intensity and sweet category.
+
+The PCA plot is used for interpretation; it is not used for classification or model selection.
+
+27. EXPLAINABILITY USING INTEGRATED GRADIENTS
+
+Notebook 2 uses Integrated Gradients to examine which input pixels influence a prediction.
+
+The method compares an image with a neutral baseline whose RGB values are all 0.5. It integrates gradients along the path from that baseline to the image.
+
+The configured integration uses 32 steps with trapezoidal weighting.
+
+The output includes the original image, an attribution heatmap, and an overlay.
+
+The notebook explains the class that the model predicted. It selects correct examples from each class where available and an incorrect example for illustration.
+
+It also reports a completeness residual, checking whether the summed attribution approximates the change in predicted-class probability between the baseline and the actual image.
+
+The neutral baseline is a methodological choice. It is not a physical sample with no colouring.
+
+Attribution maps describe model sensitivity; they do not identify chemical substances or prove causal importance.
+
+28. ERROR ANALYSIS
+
+The notebook separates predictions into three groups:
+
+Correct: predicted intensity equals the supplied label.
+Adjacent error: prediction differs by one intensity level.
+Severe ordinal error: prediction differs by two intensity levels.
+
+Example images help reveal where the classifier succeeds and fails.
+
+This is useful because a Low-to-High error represents a larger intensity disagreement than a Low-to-Medium error.
+
+The code also supports evaluation by available device and lighting metadata. However, those slice evaluations are disabled in the current configuration.
+
+Even if enabled, performance on a device represented within the existing split would not demonstrate generalization to a completely unseen device.
+
+29. SAVING THE SELECTED MODEL
+
+Notebook 2 saves the selected CS-MON model to outputs/best_csmon.pt.
+
+The checkpoint includes the trained parameters and the information needed to reconstruct the model, including:
+- Model configuration and class mapping.
+- Preprocessing and normalization settings.
+- Selected epoch, stage, seed, and validation scores.
+- Dataset-manifest hash.
+- Software and hardware records.
+- Pretrained-source and checkpoint provenance.
+- Recorded label and split limitations.
+
+The notebook reloads the checkpoint with strict parameter matching and compares predictions on a validation image.
+
+This verifies that the saved model can reproduce the selected model's output.
+
+Baseline weights and optimizer states are not included in the final saved artifact.
+
+30. LIMITATIONS TO STATE IN THE PRESENTATION
+
+Physical sample IDs, preparation-batch IDs, and capture-session IDs are unavailable.
+
+Consequently, duplicate-aware splitting reduces detected overlap but cannot establish that the splits contain independent physical samples or preparation batches.
+
+The supplied intensity labels also lack documented controlled-preparation or reference-measurement provenance.
+
+The experiment therefore evaluates agreement with the supplied CSV labels. It does not validate chemical concentration measurements.
+
+Whole-image processing includes backgrounds, and lighting and device effects remain present. The saved experiment uses one seed, so variation across repeated training runs has not been established.
+
+A suitable presentation statement is:
+
+"The results demonstrate promising image-based prediction of the supplied colouring-intensity categories under an exploratory evaluation. Further validation requires documented reference labels, independent sample and batch metadata, and external evaluation."
+
+31. COPYABLE PRESENTATION NARRATION
+
+Our project estimates colouring intensity in images of Kesari, Muscat, and Boondhi using three ordered categories: Low, Medium, and High.
+
+We used 1,944 images, with balanced representation across the three sweets and three intensity levels. Before training, we verified image readability, matched images with their metadata, inspected image quality, and checked for exact and near duplicates.
+
+Each image was orientation-corrected, converted to RGB, and resized to 224 by 224 pixels. We preserved colour information by avoiding brightness adjustment, white balancing, and colour jitter. Training augmentation used horizontal and vertical flips.
+
+We created a reproducible duplicate-constrained split containing 1,356 training images, 292 validation images, and 296 test images. Every sweet and intensity combination appears in each split.
+
+We compared CS-MON with four ImageNet-pretrained CNN baselines: MobileNetV3-Small, ResNet18, ShuffleNetV2, and MobileNetV2. All primary models used the same split, preprocessing policy, ordinal objective, and training schedule.
+
+Training proceeded through three stages: training the new head, partially fine-tuning the final backbone blocks, and fully fine-tuning the model. We used AdamW, smaller learning rates for pretrained parameters, cosine scheduling, mixed precision, gradient accumulation, and early stopping.
+
+We selected checkpoints using validation macro F1, with validation loss as the tie-breaker. The held-out test set was used for the final comparison.
+
+In the saved evaluation, CS-MON achieved 91.22 percent accuracy and 90.89 percent macro F1. ResNet18 was the strongest CNN baseline, with 74.66 percent accuracy and 72.83 percent macro F1.
+
+We also examined class-level errors, performance by sweet, inference speed, confidence, and Integrated Gradients explanations.
+
+These results remain exploratory because physical sample independence and reference-label provenance have not been verified. The system predicts the supplied visual intensity categories; chemical concentration and food safety require separate validation.
